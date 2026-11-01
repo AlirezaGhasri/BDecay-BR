@@ -3,7 +3,6 @@
 This repository provides a production-ready, modular pipeline for training machine learning models on exclusive weak branching ratios of B-mesons ($B^+$, $B^0$, $B_s^0$, and $\bar{B}_s^0$).
 
 ## Highlights
-- **No pretraining domain gap:** Trains models exclusively on B-meson species.
 - **JAX-powered GNN:** Incorporates a deep sets graph model for predicting decays directly.
 - **XGBoost & Blend:** Fits high-capacity decision trees alongside the GNN, offering optional OOF (Out-Of-Fold) ensemble blends.
 
