@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+BDecay_BR_Outputs/
+.ipynb_checkpoints/
+*All*PDG*.csv
+*Training*Decays*.csv
