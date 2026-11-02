@@ -1,0 +1,66 @@
+
+name: Project Board Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  read-project:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Read GitHub Project
+        env:
+          GH_TOKEN: ${{ secrets.GH_PROJECT_TOKEN }}
+        run: |
+          RESPONSE=$(curl -sS -X POST \
+            https://api.github.com/graphql \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query":"query { user(login: \"AlirezaGhasri\") { projectV2(number: 1) { title url items(first: 100) { totalCount nodes { content { ... on Issue { title url assignees(first: 10) { nodes { login } } } } fieldValues(first: 20) { nodes { ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } } } } } } } } }"}')
+
+          echo "$RESPONSE" | jq .
+
+          if [ "$(echo "$RESPONSE" | jq -r '.errors // empty | length')" != "" ]; then
+            echo "GraphQL returned errors"
+            exit 1
+          fi
+
+          if [ "$(echo "$RESPONSE" | jq -r '.data.user.projectV2')" = "null" ]; then
+            echo "Project not found or access denied"
+            exit 1
+          fi
+
+          echo "$RESPONSE" > project.json
+
+      - name: Send board report to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          MESSAGE=$(jq -r '
+            "📋 PROJECT BOARD REPORT\n\n" +
+            "Project: " + .data.user.projectV2.title + "\n" +
+            "Total items: " + (.data.user.projectV2.items.totalCount | tostring) +
+            "\n\n" +
+            ([.data.user.projectV2.items.nodes[] |
+              select(.content != null) |
+              "• " + .content.title +
+              "\nStatus: " +
+              ([.fieldValues.nodes[] |
+                select(.field.name == "Status") | .name][0] // "No status") +
+              "\nAssigned: " +
+              ([(.content.assignees.nodes // [])[] | "@" + .login] |
+                if length == 0 then "Unassigned" else join(", ") end) +
+              "\n" + .content.url
+            ] | join("\n\n"))
+          ' project.json)
+
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg chat_id "$TELEGRAM_CHAT_ID" \
+              --arg text "$MESSAGE" \
+              '{chat_id: $chat_id, text: $text}')"
