@@ -3,7 +3,7 @@ name: Telegram Notifications
 
 on:
   issues:
-    types: [ edited, assigned, unassigned, reopened, labeled, unlabeled]
+    types: [opened, edited, assigned, unassigned, closed, reopened, labeled, unlabeled]
   issue_comment:
     types: [created]
   pull_request:
