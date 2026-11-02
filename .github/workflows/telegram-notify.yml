@@ -1,0 +1,48 @@
+
+name: Telegram Notifications
+
+on:
+  issues:
+    types: [ edited, assigned, unassigned, reopened, labeled, unlabeled]
+  issue_comment:
+    types: [created]
+  pull_request:
+    types: [opened, reopened, synchronize, closed]
+  pull_request_review:
+    types: [submitted]
+  workflow_dispatch:
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send Telegram notification
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_ACTION: ${{ github.event.action }}
+          ACTOR: ${{ github.actor }}
+          ISSUE_TITLE: ${{ github.event.issue.title || github.event.pull_request.title || 'Repository activity' }}
+          ISSUE_URL: ${{ github.event.issue.html_url || github.event.pull_request.html_url || github.server_url }}
+        run: |
+          MESSAGE="🔔 FCC Research Team Update
+
+          Event: ${EVENT_NAME}
+          Action: ${EVENT_ACTION}
+          Person: ${ACTOR}
+          Task: ${ISSUE_TITLE}
+
+          Link: ${ISSUE_URL}"
+
+          PAYLOAD=$(jq -n \
+            --arg chat_id "$TELEGRAM_CHAT_ID" \
+            --arg text "$MESSAGE" \
+            '{chat_id: $chat_id, text: $text}')
+
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD"
